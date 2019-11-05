@@ -1,16 +1,33 @@
+// 참고자료: https://github.com/wix/react-native-calendars
+
 import React, { Component } from "react"
 import { View, Image, TouchableOpacity, AsyncStorage, ScrollView, Text, Dimensions, TextInput, Switch, StyleSheet, Alert, Platform } from "react-native"
-import moment from "moment" // 검색해보니 JavaScript 날짜 작업에 쓰인다고 함
-import * as Calendar from "expo-calendar"
+import moment from "moment" // JavaScript 날짜 작업에 쓰임
+import * as expoCalendar from "expo-calendar"
 import * as Localization from "expo-localization"
 import Constants from "expo-constants"
-
-import CalendarStrip from "react-native-calendar-strip"
-import DateTimePicker from "react-native-modal-datetime-picker"
+// import CalendarStrip from "react-native-calendar-strip" // 작은 달력 (제거함)
+import DateTimePicker from "react-native-modal-datetime-picker"  // 몇시 몇분 선택하는 라이브러리
 import { Context } from "../data/CalenderContext"
 import { Task } from "../components/CalenderTask"
+import { CalendarList, Calendar, Agenda } from "react-native-calendars"  // 큰 달력 3종류
+import {LocaleConfig} from 'react-native-calendars';  // 달력을 한국말로 바꿀때 쓴다고 함
+
+
+// 달력을 한국말로 바꾸기
+LocaleConfig.locales['korean'] = {
+  monthNames: ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'],
+  monthNamesShort: ['1','2','3','4','5','6','7','8','9','10.','11','12'],
+  dayNames: ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'],
+  dayNamesShort: ['일','월','화','수','목','금','토'],
+  today: '오늘'
+};
+LocaleConfig.defaultLocale = 'korean';
+
+
 
 const styles = StyleSheet.create({
+  
   // Todo list
   taskListContent: {
     height: 100,
@@ -143,10 +160,49 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginVertical: 20,
   },
+
+
+  // 캘린더 큰걸로 교체중 ///////////
+  // [달력]을 포함하는 틀
+  calenderContainer: {
+    marginTop: 30,
+    width: 350,
+    height: 350,
+    alignSelf: "center",
+  },
+
 })
 
 export default class Home extends Component {
   state = {
+
+
+    // 캘린더 큰걸로 교체하면서 들고옴
+    selectedDay: {
+      [`${moment().format("YYYY")}-${moment().format("MM")}-${moment().format("DD")}`]: {
+        selected: true,
+        selectedColor: "#2E66E7",
+      },
+    },
+
+    currentDay: moment().format(),
+    taskText: "",
+    notesText: "",
+    keyboardHeight: 0,
+    visibleHeight: Dimensions.get("window").height,
+    isAlarmSet: false,
+    alarmTime: moment().format(),
+    isDateTimePickerVisible: false,
+    timeType: "",
+    creatTodo: {},
+    createEventAsyncRes: "",
+    
+    ///// ----- 캘린거 큰거 합체 끝 ----- /////
+
+
+
+
+
     datesWhitelist: [
       {
         start: moment(),
@@ -155,11 +211,15 @@ export default class Home extends Component {
     ],
     todoList: [],
     markedDate: [],
-    currentDate: `${moment().format("YYYY")}-${moment().format("MM")}-${moment().format("DD")}`,
+    currentDate: `${moment().format("YYYY")}-${moment().format("MM")}-${moment().format("DD")}`, // 오늘 날짜를 2019-12-01 이런 식으로 예쁘게 나오게 변환 (그냥 moment()만 출력하면 뒤에 잡다하게 붙는다)
     isModalVisible: false,
     selectedTask: null,
     isDateTimePickerVisible: false,
   }
+
+
+
+
 
   componentWillMount() {
     this._handleDeletePreviousDayTask()
@@ -180,7 +240,7 @@ export default class Home extends Component {
           if (checkedDate > 0) {
             item.todoList.forEach(async (listValue) => {
               try {
-                await Calendar.deleteEventAsync(listValue.alarm.createEventAsyncRes.toString())
+                await expoCalendar.deleteEventAsync(listValue.alarm.createEventAsyncRes.toString())
               } catch (error) {
                 console.log(error)
               }
@@ -282,7 +342,7 @@ export default class Home extends Component {
 
     if (selectedTask.alarm.createEventAsyncRes === "") {
       try {
-        const createEventAsyncRes = await Calendar.createEventAsync(calendarId.toString(), event)
+        const createEventAsyncRes = await expoCalendar.createEventAsync(calendarId.toString(), event)
         const updateTask = { ...selectedTask }
         updateTask.alarm.createEventAsyncRes = createEventAsyncRes
         this.setState({
@@ -293,7 +353,7 @@ export default class Home extends Component {
       }
     } else {
       try {
-        await Calendar.updateEventAsync(selectedTask.alarm.createEventAsyncRes.toString(), event)
+        await expoCalendar.updateEventAsync(selectedTask.alarm.createEventAsyncRes.toString(), event)
       } catch (error) {
         console.log(error)
       }
@@ -305,7 +365,7 @@ export default class Home extends Component {
     console.log(selectedTask.alarm)
 
     try {
-      await Calendar.deleteEventAsync(selectedTask.alarm.createEventAsyncRes)
+      await expoCalendar.deleteEventAsync(selectedTask.alarm.createEventAsyncRes)
 
       const updateTask = { ...selectedTask }
       updateTask.alarm.createEventAsyncRes = ""
@@ -322,7 +382,7 @@ export default class Home extends Component {
 
     if (selectedTask.alarm.createEventAsyncRes) {
       try {
-        await Calendar.getEventAsync(selectedTask.alarm.createEventAsyncRes.toString())
+        await expoCalendar.getEventAsync(selectedTask.alarm.createEventAsyncRes.toString())
       } catch (error) {
         console.log(error)
       }
@@ -330,7 +390,7 @@ export default class Home extends Component {
   }
 
   _findCalendars = async () => {
-    const calendars = await Calendar.getCalendarsAsync()
+    const calendars = await expoCalendar.getCalendarsAsync()
 
     return calendars
   }
@@ -339,26 +399,26 @@ export default class Home extends Component {
     const calendars = await this._findCalendars()
     const newCalendar = {
       title: "test",
-      entityType: Calendar.EntityTypes.EVENT,
+      entityType: expoCalendar.EntityTypes.EVENT,
       color: "#2196F3",
       sourceId: Platform.OS === "ios" ? calendars.find((cal) => cal.source && cal.source.name === "Default").source.id : undefined,
 
       source:
         Platform.OS === "android"
           ? {
-              name: calendars.find((cal) => cal.accessLevel === Calendar.CalendarAccessLevel.OWNER).source.name,
+              name: calendars.find((cal) => cal.accessLevel === expoCalendar.CalendarAccessLevel.OWNER).source.name,
               isLocalAccount: true,
             }
           : undefined,
       name: "test",
-      accessLevel: Calendar.CalendarAccessLevel.OWNER,
-      ownerAccount: Platform.OS === "android" ? calendars.find((cal) => cal.accessLevel === Calendar.CalendarAccessLevel.OWNER).ownerAccount : undefined,
+      accessLevel: expoCalendar.CalendarAccessLevel.OWNER,
+      ownerAccount: Platform.OS === "android" ? calendars.find((cal) => cal.accessLevel === expoCalendar.CalendarAccessLevel.OWNER).ownerAccount : undefined,
     }
 
     let calendarId = null
 
     try {
-      calendarId = await Calendar.createCalendarAsync(newCalendar)
+      calendarId = await expoCalendar.createCalendarAsync(newCalendar)
     } catch (e) {
       Alert.alert(e.message)
     }
@@ -368,7 +428,11 @@ export default class Home extends Component {
 
   render() {
     const {
-      state: { datesWhitelist, markedDate, todoList, isModalVisible, selectedTask, isDateTimePickerVisible, currentDate },
+      state: { datesWhitelist, markedDate, todoList, isModalVisible, selectedTask, isDateTimePickerVisible, currentDate,
+
+
+        selectedDay, currentDay, taskText, visibleHeight, notesText, isAlarmSet, alarmTime, //isDateTimePickerVisible
+    },
       props: { navigation },
     } = this
 
@@ -378,11 +442,10 @@ export default class Home extends Component {
           <>
             {selectedTask !== null && (
               <Task isModalVisible={isModalVisible}>
+
+
+                {/* TodoList 누르면 뜨는 수정/삭제 창에서 → [시간] 밑에 숫자부분 누르면 뜨는 시간 고르는 창 */}
                 <DateTimePicker isVisible={isDateTimePickerVisible} onConfirm={this._handleDatePicked} onCancel={this._hideDateTimePicker} mode="time" />
-
-
-
-
 
 
                 {/* TodoList 누르면 뜨는 수정/삭제 창 */}
@@ -403,8 +466,10 @@ export default class Home extends Component {
                       />
                   </View>
 
+
                   <View style={styles.changeSepeerator} />
                   
+
                   <View>
                     <Text style={styles.changeTitle}> 내용 </Text>
 
@@ -432,6 +497,7 @@ export default class Home extends Component {
                       <Text style={{ fontSize: 19 }}>{moment(selectedTask.alarm.time).format("h:mm A")}</Text>
                     </TouchableOpacity>
                   </View>
+
 
                   <View style={styles.changeSepeerator} />
 
@@ -470,6 +536,7 @@ export default class Home extends Component {
                           <Text style={styles.changeButtonText}> 수정 </Text>
                       </TouchableOpacity>
 
+
                     {/* 삭제 버튼 */}
                     <TouchableOpacity
                         onPress={async () => {
@@ -491,30 +558,39 @@ export default class Home extends Component {
                 </View>
               </Task>
             )}
-            <View
-              style={{
-                flex: 1,
-                paddingTop: Constants.statusBarHeight,
-              }}
-            >
+
+
+
+
+
+            <View style={{ flex: 1, paddingTop: Constants.statusBarHeight }}>
+
+            
+            {/* 삭제한 작은 달력 (현재 큰 달력으로 교체함) */ }
+            {/* 
               <CalendarStrip
                 ref={(ref) => {
                   this.calenderRef = ref
                 }}
+
                 calendarAnimation={{ type: "sequence", duration: 30 }}
+
                 daySelectionAnimation={{
                   type: "background",
                   duration: 200,
                   highlightColor: "#ffffff",
                 }}
+
                 style={{
                   height: 150,
                   paddingTop: 20,
                   paddingBottom: 20,
                 }}
+
                 calendarHeaderStyle={{ color: "#000000" }}
                 dateNumberStyle={{ color: "#000000", paddingTop: 10 }}
                 dateNameStyle={{ color: "#BBBBBB" }}
+
                 highlightDateNumberStyle={{
                   color: "#fff",
                   backgroundColor: "#2E66E7",
@@ -529,6 +605,7 @@ export default class Home extends Component {
                   justifyContent: "center",
                   alignItems: "center",
                 }}
+
                 highlightDateNameStyle={{ color: "#2E66E7" }}
                 disabledDateNameStyle={{ color: "grey" }}
                 disabledDateNumberStyle={{ color: "grey", paddingTop: 10 }}
@@ -539,14 +616,91 @@ export default class Home extends Component {
                 markedDates={markedDate}
                 onDateSelected={(date) => {
                   const selectedDate = `${moment(date).format("YYYY")}-${moment(date).format("MM")}-${moment(date).format("DD")}`
+
                   this._updateCurrentTask(selectedDate)
                   this.setState({
                     currentDate: selectedDate,
                   })
                 }}
               />
+            */}
 
-              {/* [+]버튼 */}
+            <Calendar
+
+            // 눌렀을 때 발생하는 이벤트
+            onDayPress={(date) => {
+              const selectedDate = date.dateString  
+              this._updateCurrentTask(selectedDate)
+              this.setState({
+                selectedDay: {
+                  [date.dateString]: {
+                    selected: true,
+                    selectedColor: "#2E66E7",
+                  },
+                },
+                currentDate: date.dateString,
+              }) 
+            }}
+
+            // 마크 표시를 해주는 곳: 내가 누른 날짜
+            markedDates={selectedDay}
+          />
+
+
+
+
+              {/* 큰 달력 */}
+              {/* 
+              <View style={styles.calenderContainer}>
+              <CalendarList
+                style={{
+                  width: 350,
+                  height: 350,
+                }}
+                // current={currentDate}  // 처음에 보이는 달
+                // minDate={moment().subtract(1, 'months').format()} // 1달 전 일정까지 클릭 가능하게 함
+                horizontal
+                pastScrollRange={0}
+                pagingEnabled
+                calendarWidth={350}
+                
+
+                onDayPress={(date) => {
+                  const selectedDate = date.dateString
+                  
+                  this._updateCurrentTask(selectedDate)
+                  this.setState({
+                    selectedDay: {
+                      [date.dateString]: {
+                        selected: true,
+                        selectedColor: "#2E66E7",
+                      },
+                    },
+                    currentDate: date.dateString,
+                  }) 
+                }}
+
+
+                monthFormat="yyyy MMMM"
+                hideArrows
+                markingType="simple"
+                theme={{
+                  selectedDayBackgroundColor: "#2E66E7",
+                  selectedDayTextColor: "#ffffff",
+                  todayTextColor: "#2E66E7",
+                  backgroundColor: "#eaeef7",
+                  calendarBackground: "#eaeef7",
+                  textDisabledColor: "#d9dbe0",
+                }}
+                markedDates={selectedDay}
+
+              />
+              </View>
+*/}
+
+
+
+              {/* 둥둥 떠다니는 [+]버튼 */}
               <TouchableOpacity
                 style={styles.viewTask}
                 onPress={() =>
@@ -559,6 +713,8 @@ export default class Home extends Component {
               >
                 <Image source={require("../assets/Calenderplus.png")} style={{ height: 30, width: 30 }} />
               </TouchableOpacity>
+
+
 
               {/* Todo 리스트 */}
               <View style={{ width: "100%", height: Dimensions.get("window").height - 170 }}>
@@ -643,6 +799,11 @@ export default class Home extends Component {
                   ))}
                 </ScrollView>
               </View>
+
+
+
+
+
             </View>
           </>
         )}
