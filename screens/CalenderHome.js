@@ -566,7 +566,7 @@ export default class Home extends Component {
             <View style={{ flex: 1, paddingTop: Constants.statusBarHeight }}>
 
             
-            {/* 삭제한 작은 달력 (현재 큰 달력으로 교체함) */ }
+            {/* 삭제한 작은 달력 (여기서는 도트 표시가 가능하다. 참고용으로 남김) */ }
             {/* 
               <CalendarStrip
                 ref={(ref) => {
@@ -625,10 +625,16 @@ export default class Home extends Component {
               />
             */}
 
+
+
+
+
+
+            {/* 큰 달력: 현재 일정이 있을때 도트 표시해주는 기능이 없다. 위 코드를 참고할 생각 */}
+
             <Calendar
 
-            // 눌렀을 때 발생하는 이벤트
-            onDayPress={(date) => {
+            onDayPress={(date) => {              // 1. 눌렀을 때 발생하는 이벤트
               const selectedDate = date.dateString  
               this._updateCurrentTask(selectedDate)
               this.setState({
@@ -642,62 +648,8 @@ export default class Home extends Component {
               }) 
             }}
 
-            // 마크 표시를 해주는 곳: 내가 누른 날짜
-            markedDates={selectedDay}
+            markedDates={selectedDay}     // 2. 마크 표시를 해주는 곳: 내가 누른 날짜 (이걸 수정해야 도트 표시가 가능하다)
           />
-
-
-
-
-              {/* 큰 달력 */}
-              {/* 
-              <View style={styles.calenderContainer}>
-              <CalendarList
-                style={{
-                  width: 350,
-                  height: 350,
-                }}
-                // current={currentDate}  // 처음에 보이는 달
-                // minDate={moment().subtract(1, 'months').format()} // 1달 전 일정까지 클릭 가능하게 함
-                horizontal
-                pastScrollRange={0}
-                pagingEnabled
-                calendarWidth={350}
-                
-
-                onDayPress={(date) => {
-                  const selectedDate = date.dateString
-                  
-                  this._updateCurrentTask(selectedDate)
-                  this.setState({
-                    selectedDay: {
-                      [date.dateString]: {
-                        selected: true,
-                        selectedColor: "#2E66E7",
-                      },
-                    },
-                    currentDate: date.dateString,
-                  }) 
-                }}
-
-
-                monthFormat="yyyy MMMM"
-                hideArrows
-                markingType="simple"
-                theme={{
-                  selectedDayBackgroundColor: "#2E66E7",
-                  selectedDayTextColor: "#ffffff",
-                  todayTextColor: "#2E66E7",
-                  backgroundColor: "#eaeef7",
-                  calendarBackground: "#eaeef7",
-                  textDisabledColor: "#d9dbe0",
-                }}
-                markedDates={selectedDay}
-
-              />
-              </View>
-*/}
-
 
 
               {/* 둥둥 떠다니는 [+]버튼 */}
